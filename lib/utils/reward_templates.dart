@@ -14,23 +14,23 @@ class RewardTemplate {
 }
 
 const List<RewardTemplate> predefinedRewards = [
-  // Screen Time
+  // Health
   RewardTemplate(
-    name: "30 Minutes Extra Screen Time",
-    category: "Screen Time",
+    name: "Choose the Family Adventure",
+    category: "Health",
     pointCost: 50,
-    description: "Watch videos or play games for 30 extra minutes",
+    description: "Pick Saturday's physical activity (hiking trail, bike ride destination, or swimming pool)",
   ),
   RewardTemplate(
-    name: "1 Hour Movie Night Choice",
-    category: "Screen Time",
+    name: "Choose excercise",
+    category: "Health",
     pointCost: 80,
-    description: "Pick a movie for family movie night",
+    description: "Pick an exercise for family",
   ),
   
   // Education
   RewardTemplate(
-    name: "New Book",
+    name: "Art supplies",
     category: "Education",
     pointCost: 100,
     description: "Choose a new book from the bookstore",
@@ -42,7 +42,7 @@ const List<RewardTemplate> predefinedRewards = [
     description: "Get a new science experiment kit",
   ),
   
-  // Social
+  // Family
   RewardTemplate(
     name: "Friend Sleepover",
     category: "Social",
@@ -56,7 +56,21 @@ const List<RewardTemplate> predefinedRewards = [
     description: "Go to the playground with friends",
   ),
   
-  // Family
+  // Food
+  RewardTemplate(
+    name: "Choose Dinner",
+    category: "Family",
+    pointCost: 60,
+    description: "Pick tonight's family dinner menu",
+  ),
+  RewardTemplate(
+    name: "Extra Dessert",
+    category: "Family",
+    pointCost: 70,
+    description: "Get an extra dessert after dinner",
+  ),
+  
+// Money
   RewardTemplate(
     name: "Choose Dinner",
     category: "Family",
@@ -69,18 +83,18 @@ const List<RewardTemplate> predefinedRewards = [
     pointCost: 70,
     description: "Select the family board game for tonight",
   ),
-  
-  // Health & Activities
+
+  // Screen
   RewardTemplate(
-    name: "Extra Dessert",
-    category: "Health",
+    name: "1 Hour Movie Night Choice",
+    category: "Screen Time",
     pointCost: 30,
-    description: "Get an extra dessert after dinner",
+    description: "Pick a movie for family movie night",
   ),
   RewardTemplate(
-    name: "Skip Chore Day",
-    category: "Activities",
+    name: "Use phone for extra 15 minutes today",
+    category: "Screen Time",
     pointCost: 120,
-    description: "Skip one day of chores this week",
+    description: "Use phone for extra 15 minutes today",
   ),
 ];

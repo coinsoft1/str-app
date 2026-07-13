@@ -1,24 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum DeductionRuleType {
-  screenTime,      // Deduct per minute/hour of usage
-  missedTask,      // Deduct for incomplete tasks
-  ruleViolation,   // Deduct for breaking rules
-  dailyFee,        // Daily maintenance deduction
-}
-
 class DeductionRule {
   final String id;
+  final String parentId;
   final String childId;
   final String childName;
   final DeductionRuleType type;
   final int pointsPerInterval;
-  final int intervalMinutes;  // How often to check (1 = every minute, 60 = hourly)
+  final int intervalMinutes;
   final bool isActive;
   final String description;
 
-  const DeductionRule({
+  DeductionRule({
     required this.id,
+    required this.parentId,
     required this.childId,
     required this.childName,
     required this.type,
@@ -30,14 +25,15 @@ class DeductionRule {
 
   Map<String, dynamic> toMap() {
     return {
+      'parentId': parentId,
       'childId': childId,
       'childName': childName,
-      'type': type.toString(),
+      'type': type.name,
       'pointsPerInterval': pointsPerInterval,
       'intervalMinutes': intervalMinutes,
       'isActive': isActive,
       'description': description,
-      'lastApplied': null, // Timestamp of last deduction
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
@@ -45,13 +41,19 @@ class DeductionRule {
     final data = doc.data() as Map<String, dynamic>;
     return DeductionRule(
       id: doc.id,
-      childId: data['childId'],
-      childName: data['childName'],
-      type: DeductionRuleType.values.firstWhere((e) => e.toString() == data['type']),
-      pointsPerInterval: data['pointsPerInterval'],
-      intervalMinutes: data['intervalMinutes'],
-      isActive: data['isActive'],
-      description: data['description'],
+      parentId: data['parentId'] ?? '',
+      childId: data['childId'] ?? '',
+      childName: data['childName'] ?? '',
+      type: DeductionRuleType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => DeductionRuleType.screenTime,
+      ),
+      pointsPerInterval: data['pointsPerInterval'] ?? 1,
+      intervalMinutes: data['intervalMinutes'] ?? 60,
+      isActive: data['isActive'] ?? true,
+      description: data['description'] ?? '',
     );
   }
 }
+
+enum DeductionRuleType { screenTime, usage, bedtime }

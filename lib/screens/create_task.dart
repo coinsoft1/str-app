@@ -21,22 +21,41 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   List<Map<String, dynamic>> _children = [];
   List<String> _selectedChildIds = [];
   bool _isLoading = false;
-  bool _requireApproval = true;
-  bool _requirePhotoConfirmation = false;
+  bool _requiresApproval = true;
+  bool _requiresPhoto = false;
   TaskTemplate? _selectedTemplate;
+  String? _familyId;
 
   @override
   void initState() {
     super.initState();
-    _loadChildren();
+    _loadFamilyData();
   }
 
-  Future<void> _loadChildren() async {
+  Future<void> _loadFamilyData() async {
     setState(() => _isLoading = true);
-    
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('No user logged in');
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      _familyId = userDoc.data()?['familyId'];
+      await _loadChildren();
+    } catch (e) {
+      debugPrint('Error loading family: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadChildren() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -46,18 +65,21 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       setState(() {
         _children = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          // FIXED: Check multiple possible name fields
+          final name = data['name'] ?? data['displayName'] ?? data['username'] ?? 'Unnamed Child';
+          debugPrint('Loaded child: ${doc.id} with name: $name');
           return {
             'id': doc.id,
-            'name': data['name'] ?? 'Child',
+            'name': name,
           };
         }).toList();
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Failed to load children: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Failed to load children: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -68,8 +90,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       _nameController.text = template.name;
       _pointsController.text = template.points.toString();
       _descriptionController.text = template.description;
-      _requireApproval = template.requiresApproval;
-      _requirePhotoConfirmation = template.requiresPhoto;
+      _requiresApproval = template.requiresApproval;
+      _requiresPhoto = template.requiresPhoto;
     });
   }
 
@@ -91,7 +113,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Select Children'),
         content: StatefulBuilder(
-          builder: (context, setState) => SizedBox(
+          builder: (context, setDialogState) => SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,
@@ -100,16 +122,17 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 final child = _children[index];
                 final isSelected = _selectedChildIds.contains(child['id']);
                 return CheckboxListTile(
-                  title: Text(child['name']),
+                  title: Text(child['name'] as String),
                   value: isSelected,
                   onChanged: (bool? value) {
-                    setState(() {
+                    setDialogState(() {
                       if (value == true) {
-                        _selectedChildIds.add(child['id']);
+                        _selectedChildIds.add(child['id'] as String);
                       } else {
-                        _selectedChildIds.remove(child['id']);
+                        _selectedChildIds.remove(child['id'] as String);
                       }
                     });
+                    setState(() {});
                   },
                 );
               },
@@ -118,7 +141,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Done')
+          ),
         ],
       ),
     );
@@ -129,6 +155,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
     if (_selectedChildIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select at least one child')),
+      );
+      return;
+    }
+    if (_dueDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a due date')),
       );
       return;
     }
@@ -143,9 +175,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       final batch = FirebaseFirestore.instance.batch();
       
       for (final childId in _selectedChildIds) {
-        final childName = _children.firstWhere((c) => c['id'] == childId)['name'];
+        final childData = _children.firstWhere((c) => c['id'] == childId);
+        final childName = childData['name'] as String;
         
         final taskRef = FirebaseFirestore.instance.collection('tasks').doc();
+        
         batch.set(taskRef, {
           'name': _nameController.text.trim(),
           'title': _nameController.text.trim(),
@@ -154,12 +188,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
           'assignedTo': childId,
           'assignedToName': childName,
           'createdBy': user.uid,
-          // FIXED: Set initial status to 'assigned'
+          'familyId': _familyId,
           'status': 'assigned',
           'createdAt': FieldValue.serverTimestamp(),
-          'dueDate': _dueDate,
-          'requireApproval': _requireApproval,
-          'requirePhotoConfirmation': _requirePhotoConfirmation,
+          'dueDate': Timestamp.fromDate(_dueDate!),
+          'requiresApproval': _requiresApproval,
+          'requiresPhoto': _requiresPhoto,
         });
         taskCount++;
       }
@@ -168,14 +202,20 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Created $taskCount tasks successfully!')),
+          SnackBar(
+            content: Text('✅ Created $taskCount task${taskCount > 1 ? 's' : ''} successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error: $e')),
-      );
+      debugPrint('Error creating task: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -192,11 +232,23 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // FIXED: Added isExpanded and changed item layout to prevent overflow
                   DropdownButtonFormField<TaskTemplate>(
-                    decoration: const InputDecoration(labelText: 'Quick Select Template (Optional)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.flash_on)),
+                    decoration: const InputDecoration(
+                      labelText: 'Quick Select Template (Optional)', 
+                      border: OutlineInputBorder(), 
+                      prefixIcon: Icon(Icons.flash_on)
+                    ),
                     value: _selectedTemplate,
+                    isExpanded: true, // FIXED: Prevents overflow
                     items: predefinedTasks.map((template) {
-                      return DropdownMenuItem(value: template, child: Text('${template.name} (${template.points} pts)'));
+                      return DropdownMenuItem(
+                        value: template, 
+                        child: Text(
+                          '${template.name} (${template.points} pts)',
+                          overflow: TextOverflow.ellipsis, // FIXED: Truncate long names
+                        )
+                      );
                     }).toList(),
                     onChanged: _onTemplateSelected,
                   ),
@@ -205,7 +257,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   
                   TextFormField(
                     controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Task Name *', border: OutlineInputBorder(), prefixIcon: Icon(Icons.task)),
+                    decoration: const InputDecoration(
+                      labelText: 'Task Name *', 
+                      border: OutlineInputBorder(), 
+                      prefixIcon: Icon(Icons.task)
+                    ),
                     validator: (value) => value!.trim().isEmpty ? 'Required' : null,
                   ),
                   
@@ -213,11 +269,18 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   
                   TextFormField(
                     controller: _pointsController,
-                    decoration: const InputDecoration(labelText: 'Points *', border: OutlineInputBorder(), prefixIcon: Icon(Icons.star), suffixText: 'points'),
+                    decoration: const InputDecoration(
+                      labelText: 'Points *', 
+                      border: OutlineInputBorder(), 
+                      prefixIcon: Icon(Icons.star), 
+                      suffixText: 'points'
+                    ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Required';
-                      if (int.tryParse(value) == null || int.parse(value) <= 0) return 'Enter valid number';
+                      if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                        return 'Enter valid number';
+                      }
                       return null;
                     },
                   ),
@@ -226,8 +289,12 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   
                   ListTile(
                     leading: const Icon(Icons.calendar_today),
-                    title: Text(_dueDate == null ? 'Select Due Date (Optional)' : 'Due Date: ${DateFormat('MMM dd, yyyy').format(_dueDate!)}'),
+                    title: Text(_dueDate == null 
+                      ? 'Select Due Date *' 
+                      : 'Due Date: ${DateFormat('MMM dd, yyyy').format(_dueDate!)}'
+                    ),
                     trailing: const Icon(Icons.arrow_drop_down),
+                    tileColor: _dueDate == null ? Colors.red[50] : null,
                     onTap: _selectDueDate,
                   ),
                   
@@ -235,7 +302,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   
                   TextFormField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description (Optional)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.description)),
+                    decoration: const InputDecoration(
+                      labelText: 'Description (Optional)', 
+                      border: OutlineInputBorder(), 
+                      prefixIcon: Icon(Icons.description)
+                    ),
                     maxLines: 3,
                   ),
                   
@@ -244,26 +315,27 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   SwitchListTile(
                     title: const Text('Require Parent Approval'),
                     subtitle: const Text('Child must request approval to complete'),
-                    value: _requireApproval,
-                    onChanged: (value) => setState(() => _requireApproval = value),
+                    value: _requiresApproval,
+                    onChanged: (value) => setState(() => _requiresApproval = value),
                   ),
                   
                   SwitchListTile(
                     title: const Text('Require Photo Confirmation'),
                     subtitle: const Text('Child must upload a photo as proof'),
-                    value: _requirePhotoConfirmation,
-                    onChanged: (value) => setState(() => _requirePhotoConfirmation = value),
+                    value: _requiresPhoto,
+                    onChanged: (value) => setState(() => _requiresPhoto = value),
                   ),
                   
                   const SizedBox(height: 20),
                   
                   Card(
+                    color: _selectedChildIds.isEmpty ? Colors.orange[50] : null,
                     child: ListTile(
                       leading: const Icon(Icons.people),
                       title: const Text('Assign to Children *'),
                       subtitle: _selectedChildIds.isEmpty
                           ? const Text('No children selected', style: TextStyle(color: Colors.red))
-                          : Text('${selectedChildNames.length} child${selectedChildNames.length > 1 ? 'ren' : ''} selected'),
+                          : Text('${_selectedChildIds.length} child${_selectedChildIds.length > 1 ? 'ren' : ''} selected'),
                       trailing: const Icon(Icons.arrow_drop_down),
                       onTap: _showChildSelectionDialog,
                     ),
@@ -272,20 +344,17 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                   const SizedBox(height: 24),
                   
                   ElevatedButton.icon(
-                    onPressed: _createTask,
+                    onPressed: _isLoading ? null : _createTask,
                     icon: const Icon(Icons.add_task),
-                    label: const Text('Create Tasks'),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16), minimumSize: const Size(double.infinity, 50)),
+                    label: Text(_isLoading ? 'Creating...' : 'Create Tasks'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16), 
+                      minimumSize: const Size(double.infinity, 50)
+                    ),
                   ),
                 ],
               ),
             ),
     );
-  }
-  
-  List<String> get selectedChildNames {
-    return _selectedChildIds.map<String>((id) {
-      return _children.firstWhere((c) => c['id'] == id)['name'] as String;
-    }).toList();
   }
 }
