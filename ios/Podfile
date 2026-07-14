@@ -40,7 +40,8 @@ post_install do |installer|
     end
   end
 
-  xcconfig_files = Dir.glob(File.join(installer.sandbox_root, '**', '*.xcconfig'))
+  # Fix Xcode 15+ DT_TOOLCHAIN_DIR issue and strip -G flag
+  xcconfig_files = Dir.glob(File.join('Pods', '**', '*.xcconfig'))
   xcconfig_files.each do |file|
     next unless File.exist?(file)
     content = File.read(file)
