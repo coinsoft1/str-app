@@ -1,4 +1,3 @@
-cat > ios/Podfile << 'EOF'
 platform :ios, '14.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -55,4 +54,3 @@ post_install do |installer|
     end
   end
 end
-EOF
