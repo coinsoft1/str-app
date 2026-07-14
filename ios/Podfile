@@ -1,9 +1,6 @@
-cd C:\Users\coins\Documents\str_app_fresh
-
 cat > ios/Podfile << 'EOF'
 platform :ios, '14.0'
 
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -44,22 +41,15 @@ post_install do |installer|
     end
   end
 
-  # AGGRESSIVE FIX: Strip -G from every generated .xcconfig file on disk
-  # and fix the Xcode 15 DT_TOOLCHAIN_DIR bug
   xcconfig_files = Dir.glob(File.join(installer.sandbox_root, '**', '*.xcconfig'))
   xcconfig_files.each do |file|
     next unless File.exist?(file)
     content = File.read(file)
     original = content.dup
-
-    # Remove standalone -G flags from compiler and linker settings
     content = content.gsub(/(\s|^)-G(\s|$)/, ' ')
-    # Also remove -G if it appears next to other flags like -G -something
     content = content.gsub(/-G\s+/, ' ')
     content = content.gsub(/\s+-G/, ' ')
-    # Fix Xcode 15 toolchain variable bug
     content = content.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR')
-
     if content != original
       File.write(file, content)
     end
