@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:usage_stats/usage_stats.dart';
+import 'usage_stats_stub.dart';
 
 class AppUsageInfo {
   final String packageName;

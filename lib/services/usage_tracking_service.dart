@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:usage_stats/usage_stats.dart';
+import 'usage_stats_stub.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,6 +12,8 @@ import '../models/usage_entry.dart';
 
 class UsageTrackingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // ... rest of the file is IDENTICAL to what you pasted ...
   
   // Known app categorization database
   final Map<String, UsageCategory> _appDatabase = {
