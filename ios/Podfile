@@ -1,3 +1,6 @@
+cd C:\Users\coins\Documents\str_app_fresh
+
+cat > ios/Podfile << 'EOF'
 platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -36,40 +39,30 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-
     target.build_configurations.each do |config|
-      # Force iOS 14.0 everywhere
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
-
-      # Strip the bad -G flag from all compiler/linker settings
-      ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_LDFLAGS'].each do |key|
-        if config.build_settings[key].is_a?(String)
-          config.build_settings[key] = config.build_settings[key].gsub('-G', '').gsub(/\s+/, ' ').strip
-        elsif config.build_settings[key].is_a?(Array)
-          config.build_settings[key] = config.build_settings[key].reject { |f| f == '-G' }
-        end
-      end
-
-      # Fix Xcode 15+ DT_TOOLCHAIN_DIR issue that causes malformed flags
-      if config.base_configuration_reference
-        begin
-          xcconfig_path = config.base_configuration_reference.real_path
-          if File.exist?(xcconfig_path)
-            xcconfig = File.read(xcconfig_path)
-            xcconfig_mod = xcconfig.gsub(/DT_TOOLCHAIN_DIR/, "TOOLCHAIN_DIR")
-            if xcconfig != xcconfig_mod
-              File.open(xcconfig_path, "w") { |file| file << xcconfig_mod }
-            end
-          end
-        rescue
-          # Ignore missing references
-        end
-      end
     end
   end
 
-  # Also force the main Pods project configs to 14.0
-  installer.pods_project.build_configurations.each do |config|
-    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+  # AGGRESSIVE FIX: Strip -G from every generated .xcconfig file on disk
+  # and fix the Xcode 15 DT_TOOLCHAIN_DIR bug
+  xcconfig_files = Dir.glob(File.join(installer.sandbox_root, '**', '*.xcconfig'))
+  xcconfig_files.each do |file|
+    next unless File.exist?(file)
+    content = File.read(file)
+    original = content.dup
+
+    # Remove standalone -G flags from compiler and linker settings
+    content = content.gsub(/(\s|^)-G(\s|$)/, ' ')
+    # Also remove -G if it appears next to other flags like -G -something
+    content = content.gsub(/-G\s+/, ' ')
+    content = content.gsub(/\s+-G/, ' ')
+    # Fix Xcode 15 toolchain variable bug
+    content = content.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR')
+
+    if content != original
+      File.write(file, content)
+    end
   end
 end
+EOF
