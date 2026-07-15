@@ -36,5 +36,25 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # Force iOS 14.0 on every target, overriding Firebase's 10.0
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+
+      # Remove the -G flag from compiler and linker settings
+      ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_LDFLAGS'].each do |key|
+        value = config.build_settings[key]
+        if value.is_a?(String)
+          cleaned = value.split(' ').reject { |f| f == '-G' }.join(' ')
+          config.build_settings[key] = cleaned
+        elsif value.is_a?(Array)
+          config.build_settings[key] = value.reject { |f| f == '-G' }
+        end
+      end
+    end
+  end
+
+  # Also force the main Pods project configs to 14.0
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
   end
 end
