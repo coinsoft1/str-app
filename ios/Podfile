@@ -38,42 +38,35 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
 
-      # DEFINITIVE FIX: Strip -G from every build setting value
+      # NUCLEAR FIX: Remove -G from every build setting value
       config.build_settings.each do |key, value|
         if value.is_a?(String) && value.include?('-G')
-          puts "[STR_APP] Removing -G from #{target.name} > #{config.name} > #{key}"
-          cleaned = value.gsub(/(\s|^)-G(\s|$)/, ' ')
-                         .gsub(/-G\s+/, ' ')
-                         .gsub(/\s+-G/, ' ')
-                         .strip
+          puts "[STR_APP] STRIPPING -G from #{target.name} > #{config.name} > #{key}"
+          cleaned = value.gsub(/-G/, '').gsub(/  +/, ' ').strip
           config.build_settings[key] = cleaned
-        elsif value.is_a?(Array) && value.include?('-G')
-          puts "[STR_APP] Removing -G from #{target.name} > #{config.name} > #{key}"
-          config.build_settings[key] = value.reject { |v| v == '-G' }
+        elsif value.is_a?(Array) && value.any? { |v| v.include?('-G') }
+          puts "[STR_APP] STRIPPING -G from #{target.name} > #{config.name} > #{key}"
+          cleaned = value.map { |v| v.include?('-G') ? v.gsub(/-G/, '').gsub(/  +/, ' ').strip : v }.reject(&:empty?)
+          config.build_settings[key] = cleaned
         end
       end
     end
   end
 
-  # Force project-level deployment target to 14.0
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
   end
 
-  # Also patch every generated .xcconfig file on disk
-  xcconfig_files = Dir.glob(File.join('Pods', '**', '*.xcconfig'))
+  # NUCLEAR FIX: Patch every generated xcconfig file on disk
+  ios_dir = File.dirname(__FILE__)
+  xcconfig_files = Dir.glob(File.join(ios_dir, 'Pods', '**', '*.xcconfig'))
+  puts "[STR_APP] Scanning #{xcconfig_files.length} xcconfig files for -G"
   xcconfig_files.each do |file|
     next unless File.exist?(file)
     content = File.read(file)
-    original = content.dup
-
-    content = content.gsub(/(\s|^)-G(\s|$)/, ' ')
-                     .gsub(/-G\s+/, ' ')
-                     .gsub(/\s+-G/, ' ')
-                     .gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR')
-
-    if content != original
-      puts "[STR_APP] Patching xcconfig: #{file}"
+    if content.include?('-G')
+      puts "[STR_APP] PATCHING -G in #{file}"
+      content = content.gsub(/-G/, '').gsub(/  +/, ' ')
       File.write(file, content)
     end
   end
