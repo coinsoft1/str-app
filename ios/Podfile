@@ -38,16 +38,17 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
 
-      # NUCLEAR FIX: Remove -G from every build setting value
-      config.build_settings.each do |key, value|
-        if value.is_a?(String) && value.include?('-G')
-          puts "[STR_APP] STRIPPING -G from #{target.name} > #{config.name} > #{key}"
-          cleaned = value.gsub(/-G/, '').gsub(/  +/, ' ').strip
-          config.build_settings[key] = cleaned
-        elsif value.is_a?(Array) && value.any? { |v| v.include?('-G') }
-          puts "[STR_APP] STRIPPING -G from #{target.name} > #{config.name} > #{key}"
-          cleaned = value.map { |v| v.include?('-G') ? v.gsub(/-G/, '').gsub(/  +/, ' ').strip : v }.reject(&:empty?)
-          config.build_settings[key] = cleaned
+      # SURGICAL FIX: Only remove -G from compiler/linker flags
+      ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_LDFLAGS'].each do |key|
+        value = config.build_settings[key]
+        next unless value
+
+        if value.is_a?(String)
+          cleaned = value.split(' ').reject { |flag| flag == '-G' }.join(' ')
+          config.build_settings[key] = cleaned if cleaned != value
+        elsif value.is_a?(Array)
+          cleaned = value.reject { |flag| flag == '-G' }
+          config.build_settings[key] = cleaned if cleaned != value
         end
       end
     end
@@ -55,19 +56,5 @@ post_install do |installer|
 
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
-  end
-
-  # NUCLEAR FIX: Patch every generated xcconfig file on disk
-  ios_dir = File.dirname(__FILE__)
-  xcconfig_files = Dir.glob(File.join(ios_dir, 'Pods', '**', '*.xcconfig'))
-  puts "[STR_APP] Scanning #{xcconfig_files.length} xcconfig files for -G"
-  xcconfig_files.each do |file|
-    next unless File.exist?(file)
-    content = File.read(file)
-    if content.include?('-G')
-      puts "[STR_APP] PATCHING -G in #{file}"
-      content = content.gsub(/-G/, '').gsub(/  +/, ' ')
-      File.write(file, content)
-    end
   end
 end
