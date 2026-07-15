@@ -39,7 +39,19 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
     end
   end
+
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+  end
+
+  # Patch all generated xcconfig files on disk after pod install
+  xcconfig_files = Dir.glob(File.join(Dir.pwd, 'Pods', '**', '*.xcconfig'))
+  xcconfig_files.each do |file|
+    next unless File.exist?(file)
+    content = File.read(file)
+    if content.include?('-G')
+      Pod::UI.puts "PATCHING -G in #{file}"
+      File.write(file, content.gsub(/(?:^|\s)-G(?:\s|$)/, ' '))
+    end
   end
 end
