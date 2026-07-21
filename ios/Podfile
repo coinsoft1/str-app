@@ -64,6 +64,13 @@ post_install do |installer|
           config.build_settings[key] = value.reject { |f| f == '-G' }
         end
       end
+
+      # Allow plugins like firebase_storage to import plain (non-modular)
+      # headers such as Firebase.h from inside a framework module. Newer
+      # Xcode enforces stricter module boundary checks by default; this
+      # setting relaxes that specific check, which is the standard fix for
+      # this well-known Flutter + Firebase + use_frameworks! combination.
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
 
