@@ -71,4 +71,18 @@ post_install do |installer|
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
   end
+
+  # Patch gRPC-Core's basic_seq.h for the newer-Clang "template argument list"
+  # parse error. Older gRPC-Core source omits an empty <> after a templated
+  # call, which newer, stricter Clang versions reject. This adds it back in,
+  # safely and only if the pattern is still present (won't break future
+  # gRPC-Core versions that already fix this upstream).
+  grpc_seq_file = File.join(installer.sandbox.root, 'gRPC-Core', 'src', 'core', 'lib', 'promise', 'detail', 'basic_seq.h')
+  if File.exist?(grpc_seq_file)
+    content = File.read(grpc_seq_file)
+    patched = content.gsub('Traits::template CallSeqFactory(', 'Traits::template CallSeqFactory<>(')
+    if patched != content
+      File.write(grpc_seq_file, patched)
+    end
+  end
 end
