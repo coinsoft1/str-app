@@ -1,3 +1,5 @@
+require 'xcodeproj'
+
 platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -93,5 +95,23 @@ post_install do |installer|
         File.write(grpc_seq_file, patched)
       end
     end
+  end
+
+  # Also apply the "allow non-modular includes" setting directly to the main
+  # Runner.xcodeproj (not just the Pods project). Some Firebase-related
+  # "non-modular header" errors only clear once this setting exists on BOTH
+  # the Pods project AND the main app project/target. This only adds one
+  # build setting to Runner's existing configs — it does not add, remove, or
+  # reorder any files, targets, or other settings, so nothing else about the
+  # Xcode project changes.
+  runner_project_path = File.join(__dir__, 'Runner.xcodeproj')
+  if File.exist?(runner_project_path)
+    runner_project = Xcodeproj::Project.open(runner_project_path)
+    runner_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+    runner_project.save
   end
 end
