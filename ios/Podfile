@@ -1,6 +1,6 @@
 require 'xcodeproj'
 
-platform :ios, '14.0'
+platform :ios, '16.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -54,7 +54,7 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       # Force iOS 14.0 on every target, overriding Firebase's 10.0
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
 
       # Remove the -G flag from compiler and linker settings
       ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_LDFLAGS'].each do |key|
@@ -78,7 +78,7 @@ post_install do |installer|
 
   # Also force the main Pods project configs to 14.0
   installer.pods_project.build_configurations.each do |config|
-    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
   end
 
   # Patch the "template argument list" Clang parse error in basic_seq.h.
