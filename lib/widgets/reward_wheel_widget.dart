@@ -685,7 +685,7 @@ class _GiftBoxRevealDialogState extends State<GiftBoxRevealDialog>
 
                     if (!_isOpen || _openAnimation.value < 1)
                       Opacity(
-                        opacity: 1 - _openAnimation.value,
+                        opacity: (1 - _openAnimation.value).clamp(0.0, 1.0),
                         child: Transform.rotate(
                           angle: _shakeAnimation.value,
                           child: Container(
