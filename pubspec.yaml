@@ -37,7 +37,7 @@ dependencies:
   firebase_storage: ^14.0.1
   
   # Google Sign-In
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   
   # UI & Rendering
   flutter_markdown: ^0.6.23
