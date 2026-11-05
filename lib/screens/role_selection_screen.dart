@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import '../widgets/onboarding_screen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -25,6 +26,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pasteFamilyCode() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final cleaned = (data?.text ?? '').toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (cleaned.length == 6) {
+      _familyCodeController.text = cleaned;
+    } else {
+      _showError('Clipboard does not contain a 6-character family code.');
+    }
   }
 
   Future<void> _createChildAccount() async {
@@ -322,6 +333,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                   decoration: InputDecoration(
                     labelText: 'Family Code',
                     prefixIcon: const Icon(Icons.family_restroom, color: Color(0xFF6A1B9A)),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.content_paste, color: Color(0xFF6A1B9A)),
+                      tooltip: 'Paste code',
+                      onPressed: _pasteFamilyCode,
+                    ),
                     hintText: 'e.g., JLD5W3',
                     counterText: '',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

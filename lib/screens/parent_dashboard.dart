@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/settings_service.dart';
 import 'create_task.dart';
 import 'parent/reward_management_screen.dart';
@@ -323,6 +324,22 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await FirebaseAuth.instance.signOut();
     // AuthWrapper handles routing automatically
   }
@@ -391,6 +408,27 @@ class _ParentDashboardState extends State<ParentDashboard> {
         );
       }
     }
+  }
+
+  // TODO: Replace with your real TestFlight public link (App Store Connect → TestFlight → group → Public Link)
+  static const String _kAppStoreLink = 'https://testflight.apple.com/join/PLACEHOLDER';
+
+  Future<void> _inviteChild() async {
+    final code = (_familyData?['familyCode'] ?? '') as String;
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Family code not loaded yet — try again in a moment.')),
+      );
+      return;
+    }
+    await Share.share(
+      'Join our family on the STR App!\n\n'
+      '1. Download the app: $_kAppStoreLink\n'
+      "2. Open it and choose 'I'm a Child'\n"
+      '3. Enter our family code: $code\n\n'
+      'See you there!',
+      subject: 'Join our family on STR',
+    );
   }
 
   Future<void> _editGoal(String goalId, Map<String, dynamic> goalData) async {
@@ -800,6 +838,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _Item(Icons.casino, 'Wheel', Colors.orange, () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const WheelConfigScreen()));
       }),
+      _Item(Icons.person_add, 'Invite', Colors.pink, _inviteChild),
     ];
     final w = (MediaQuery.of(context).size.width - 44) / 2;
     return Column(
