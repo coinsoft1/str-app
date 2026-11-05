@@ -410,16 +410,18 @@ class _ParentDashboardState extends State<ParentDashboard> {
     }
   }
 
-  // Fallback only — the real link lives in Firestore (collection "config", document "app", field "inviteLink")
-  static const String _kFallbackInviteLink = 'https://testflight.apple.com/join/PLACEHOLDER';
+  // Fallback — real links live in Firestore (collection "config", document "app"):
+  //   inviteLinkIos (TestFlight) and inviteLinkAndroid (App Distribution public link)
+  static const String _kFallbackIosLink = 'https://testflight.apple.com/join/PLACEHOLDER';
 
-  Future<String> _getInviteLink() async {
+  Future<String> _getInviteLink(String platform) async {
+    final field = platform == 'android' ? 'inviteLinkAndroid' : 'inviteLink';
     try {
       final doc = await FirebaseFirestore.instance.collection('config').doc('app').get();
-      final link = (doc.data()?['inviteLink'] ?? '') as String;
+      final link = (doc.data()?[field] ?? '') as String;
       if (link.isNotEmpty) return link;
     } catch (_) {}
-    return _kFallbackInviteLink;
+    return platform == 'android' ? '' : _kFallbackIosLink;
   }
 
   Future<void> _inviteChild() async {
@@ -430,10 +432,31 @@ class _ParentDashboardState extends State<ParentDashboard> {
       );
       return;
     }
-    final link = await _getInviteLink();
+    final platform = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Invite your child'),
+        content: const Text('Which device will your child use?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, 'ios'), child: const Text('iPhone / iPad')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'android'), child: const Text('Android')),
+        ],
+      ),
+    );
+    if (platform == null || !mounted) return;
+    final link = await _getInviteLink(platform);
+    if (link.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Android invite link not set yet — add inviteLinkAndroid in Firestore (config/app).')),
+        );
+      }
+      return;
+    }
+    final storeName = platform == 'android' ? 'install page' : 'TestFlight';
     await Share.share(
       'Join our family on the STR App!\n\n'
-      '1. Download the app: $link\n'
+      '1. Download the app ($storeName): $link\n'
       "2. Open it and choose 'I'm a Child'\n"
       '3. Enter our family code:\n\n'
       '$code\n',
