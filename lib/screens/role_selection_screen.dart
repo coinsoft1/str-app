@@ -21,6 +21,31 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    _tryAutofillFamilyCode();
+  }
+
+  Future<void> _tryAutofillFamilyCode() async {
+    // Let the screen settle before any snackbar
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _familyCodeController.text.isNotEmpty) return;
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final cleaned = (data?.text ?? '').toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final match = RegExp(r'[A-Z0-9]{6}').firstMatch(cleaned);
+      if (match != null && mounted) {
+        setState(() => _familyCodeController.text = match.group(0)!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Family code filled from clipboard')),
+        );
+      }
+    } catch (_) {
+      // Clipboard unreadable — the manual paste icon still works
+    }
+  }
+
+  @override
   void dispose() {
     _familyCodeController.dispose();
     _usernameController.dispose();

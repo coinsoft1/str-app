@@ -410,8 +410,17 @@ class _ParentDashboardState extends State<ParentDashboard> {
     }
   }
 
-  // TODO: Replace with your real TestFlight public link (App Store Connect → TestFlight → group → Public Link)
-  static const String _kAppStoreLink = 'https://testflight.apple.com/join/PLACEHOLDER';
+  // Fallback only — the real link lives in Firestore (collection "config", document "app", field "inviteLink")
+  static const String _kFallbackInviteLink = 'https://testflight.apple.com/join/PLACEHOLDER';
+
+  Future<String> _getInviteLink() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('config').doc('app').get();
+      final link = (doc.data()?['inviteLink'] ?? '') as String;
+      if (link.isNotEmpty) return link;
+    } catch (_) {}
+    return _kFallbackInviteLink;
+  }
 
   Future<void> _inviteChild() async {
     final code = (_familyData?['familyCode'] ?? '') as String;
@@ -421,12 +430,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
       );
       return;
     }
+    final link = await _getInviteLink();
     await Share.share(
       'Join our family on the STR App!\n\n'
-      '1. Download the app: $_kAppStoreLink\n'
+      '1. Download the app: $link\n'
       "2. Open it and choose 'I'm a Child'\n"
-      '3. Enter our family code: $code\n\n'
-      'See you there!',
+      '3. Enter our family code:\n\n'
+      '$code\n',
       subject: 'Join our family on STR',
     );
   }
