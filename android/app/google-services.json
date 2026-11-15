@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:323905125591:android:12781a80e8d29c5f974492",
+        "android_client_info": {
+          "package_name": "com.coinsoft.strapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjXybBKea6QH7BAJ7ZwAMw8-FQfq5a0VU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:323905125591:android:557a2cc09993f31b974492",
         "android_client_info": {
           "package_name": "com.example.str_app"
